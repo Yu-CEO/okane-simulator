@@ -1,0 +1,91 @@
+# CI/CD（自動チェックと自動公開）の設定：おかね収支シミュレーター（ブラウザで動くHTML/JS）
+# もとにしたひな形：products/_templates/ci/web.yml
+#
+# GitHubにコードを上げるたびに、次を自動で実行する。
+#   1. テスト（tests/ フォルダの *.test.js を node --test で実行）
+#   2. 機密チェック（ci/confidential_check.py）
+#   3. 1と2が合格し、さらに「Web公開がオン」のときだけ、GitHub Pages に公開する
+#
+# 結果はリポジトリの「Actions」タブで見られる。✅なら合格、❌なら不合格。
+#
+# 機密の言葉は、このファイルには書かない。
+#   Settings → Secrets and variables → Actions → Secrets に CONFIDENTIAL_WORDS（1行に1語）を登録する。
+# Web公開をオンにする方法：
+#   Settings → Secrets and variables → Actions → Variables に DEPLOY_PAGES = true を登録する。
+#   登録しなければ、公開の手順（deploy）は毎回「スキップ」になる。※2026-11-15 時点は公開しない
+
+name: CI
+
+# いつ動かすか
+on:
+  push:
+    branches: [main]      # main に上げたとき
+  pull_request:           # 変更の提案（プルリクエスト）を出したとき
+  workflow_dispatch:      # 「Actions」タブから手で実行したいとき
+
+jobs:
+  # ---------------------------------------------------------------
+  # ここから CI（自動チェック）
+  # ---------------------------------------------------------------
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # コードを読むだけ（書き込みはしない）
+    steps:
+      # GitHubのサーバーにコードを持ってくる
+      - uses: actions/checkout@v5
+
+      # Node.js 20 を用意する（計算部分のテストに使う）
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      # tests/ の自動テストを実行する（手元では simulator フォルダで `node --test`）
+      - name: テスト
+        run: node --test
+
+      # Python を用意する（機密チェックのスクリプトに使う）
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # 機密の言葉は Secrets（CONFIDENTIAL_WORDS）から受け取る。ログに言葉そのものは出ない
+      - name: 機密チェック
+        env:
+          CONFIDENTIAL_WORDS: ${{ secrets.CONFIDENTIAL_WORDS }}
+        run: python ci/confidential_check.py
+
+  # ---------------------------------------------------------------
+  # ここから CD（自動公開）。チェックが合格し、main で、DEPLOY_PAGES が true のときだけ動く
+  # ---------------------------------------------------------------
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # コードを読む（非公開リポジトリでも取得できるように）
+      pages: write        # GitHub Pages に公開する
+      id-token: write     # 公開のときの本人確認に使う
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # 公開するファイルだけをまとめる（テスト・ドキュメント・CIの設定は公開しない）
+      - name: 公開するファイルをまとめる
+        run: |
+          mkdir _site
+          cp -r *.html _site/ 2>/dev/null || true
+          for dir in css js assets images; do
+            if [ -d "$dir" ]; then cp -r "$dir" _site/; fi
+          done
+
+      # まとめたファイルを GitHub Pages 用に預ける
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      # 公開する
+      - id: deployment
+        uses: actions/deploy-pages@v4

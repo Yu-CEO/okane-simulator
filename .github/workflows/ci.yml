@@ -77,7 +77,7 @@ jobs:
         run: |
           mkdir _site
           cp -r *.html _site/ 2>/dev/null || true
-          for dir in css js assets images; do
+          for dir in css js data assets images; do
             if [ -d "$dir" ]; then cp -r "$dir" _site/; fi
           done
 

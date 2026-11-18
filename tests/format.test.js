@@ -4,7 +4,8 @@
  */
 const test = require("node:test");
 const assert = require("node:assert");
-const { toNonNegativeNumber, formatMan, formatManSigned } = require("../js/format.js");
+const { toNonNegativeNumber, formatMan, formatManSigned, formatManShort, formatPercentSigned } =
+  require("../js/format.js");
 
 test("AC-9：空欄・数字でないもの・マイナスは0になる", function () {
   assert.strictEqual(toNonNegativeNumber(""), 0);
@@ -28,4 +29,12 @@ test("手元に残るお金は0以上なら「+」をつける", function () {
   assert.strictEqual(formatManSigned(6.5), "+6.5万円");
   assert.strictEqual(formatManSigned(0), "+0万円");
   assert.strictEqual(formatManSigned(-3), "−3万円");
+});
+
+test("幅の下の数字は「円」を省き、収益率は小数第2位まで符号つきで出す", function () {
+  assert.strictEqual(formatManShort(1100.32), "1,100.3万");
+  assert.strictEqual(formatPercentSigned(14.89), "+14.89%");
+  assert.strictEqual(formatPercentSigned(-17.05), "−17.05%");
+  assert.strictEqual(formatPercentSigned(0), "0.00%");
+  assert.strictEqual(formatPercentSigned(50.3), "+50.30%");
 });

@@ -13,7 +13,8 @@
        - 手元のファイル .confidential_words.txt（.gitignore で除外する。1行に1語）
 
 使い方：
-    python ci/confidential_check.py
+    python ci/confidential_check.py                  … 手元での確認（言葉のリストがなくても「注意」を出して続ける）
+    python ci/confidential_check.py --require-words  … CIでの確認（言葉のリストが空なら、その時点で失敗にする）
 """
 
 import os
@@ -43,6 +44,11 @@ SKIP_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".mp4", ".wav", ".zi
 THIS_FILE = "ci/confidential_check.py"
 
 LOCAL_WORDS_FILE = ".confidential_words.txt"
+
+# このオプションを付けると、機密の言葉のリストが空のときに失敗（終了コード1）にする。
+# CIで Secrets（CONFIDENTIAL_WORDS）の登録を忘れたまま「合格」になるのを防ぐため。
+# 付けないとき（手元での確認）は、これまでどおり「注意」を出して続ける。
+REQUIRE_WORDS_OPTION = "--require-words"
 
 
 # --- 機密の言葉を読み込む ----------------------------------------------
@@ -121,7 +127,15 @@ def check_file(path, secret_words):
 # --- 全体の流れ ---------------------------------------------------------
 
 def main():
+    # コマンドに --require-words が付いているかどうか
+    require_words = REQUIRE_WORDS_OPTION in sys.argv[1:]
+
     secret_words = load_secret_words()
+    if not secret_words and require_words:
+        # CIでは、言葉のリストがないまま調べても意味がないので、ここで止める
+        print("機密チェック：NG。機密の言葉のリストが空です（--require-words 指定）。")
+        print("GitHubの Settings → Secrets and variables → Actions → Secrets に CONFIDENTIAL_WORDS（1行に1語）を登録してください。")
+        sys.exit(1)
     if not secret_words:
         print("注意：機密の言葉のリストがありません（CONFIDENTIAL_WORDS / .confidential_words.txt）。決まった形の情報だけを調べます。")
 

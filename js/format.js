@@ -1,7 +1,8 @@
 /*
  * format.js：金額の表示形式と、入力値を数字に直す処理
- * 主な関数：toNonNegativeNumber（入力→0以上の数字）、formatMan（万円の表示）、formatManSigned（+付きの表示）
- * nisa_view.js・realestate_view.js から使われる。tests/format.test.js でテストする。
+ * 主な関数：toNonNegativeNumber（入力→0以上の数字）、formatMan（万円の表示）、formatManSigned（+付きの表示）、
+ *   formatManShort（「万円」の「円」を省いた表示）、formatPercentSigned（収益率の%表示）
+ * nisa_view.js・realestate_view.js・history_*view.js から使われる。tests/format.test.js でテストする。
  * ブラウザでは普通の <script> で、Node.js（ブラウザの外でJavaScriptを動かす仕組み。テストに使う）では
  * require（Node.jsで別のファイルを読み込む命令）で読み込める形にしている。
  */
@@ -60,8 +61,38 @@ function formatManSigned(amountMan) {
   return prefix + formatMan(amountMan);
 }
 
+/**
+ * 幅の「下」の数字に使う、「万円」の「円」を省いた表示（「1,234.5万 〜 3,456.7万円」の左側）。
+ * @param {number} amountMan 金額（万円）
+ * @returns {string} 表示用の文字
+ * @example formatManShort(1100.32) // "1,100.3万"
+ */
+function formatManShort(amountMan) {
+  return formatMan(amountMan).replace("万円", "万");
+}
+
+// 収益率の表示で、小数第何位まで出すか（GPIF の資料の表記に合わせて第2位まで）
+const PERCENT_DIGITS = 2;
+
+/**
+ * 収益率（%）を「+14.89%」「−17.05%」の形の文字にする（0 は符号なし）。
+ * @param {number} percent 収益率（%）
+ * @returns {string} 表示用の文字
+ * @example formatPercentSigned(14.89) // "+14.89%"
+ * @example formatPercentSigned(-17.05) // "−17.05%"
+ */
+function formatPercentSigned(percent) {
+  let sign = "";
+  if (percent < 0) {
+    sign = MINUS_SIGN;
+  } else if (percent > 0) {
+    sign = "+";
+  }
+  return sign + Math.abs(percent).toFixed(PERCENT_DIGITS) + "%";
+}
+
 // Node.js（テスト）から require で使えるようにする。module（Node.jsでファイルの外に渡すものを入れる箱）は
 // ブラウザにはないので、ブラウザでは何もしない
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { toNonNegativeNumber, formatMan, formatManSigned };
+  module.exports = { toNonNegativeNumber, formatMan, formatManSigned, formatManShort, formatPercentSigned };
 }

@@ -11,6 +11,21 @@
 const RE_MONTHS_PER_YEAR = 12;
 const RE_PERCENT = 100;
 
+// 画面を開いたときの初期値（index.html の入力欄の value と同じ。例と分かる切りのよい値。2026-11-19 v2.2.1）
+// 値を変えるときは index.html の入力欄も同じ値にする（tests/realestate_calc.test.js が一致を確かめる）
+const RE_DEFAULT_INPUTS = {
+  rent: 10,          // 家賃（月・万円）
+  vacancy: 5,        // 空室を見込む割合（%）
+  loan: 2000,        // 借入額（万円）
+  rate: 2,           // 金利（年・%）
+  years: 35,         // 返済の年数（年）
+  fee: 1,            // 管理費＋修繕積立金（月・万円）
+  management: 5,     // 管理会社への手数料（%）
+  tax: 10,           // 固定資産税など（年・万円）
+  hasGuarantee: false, // 家賃保証（オフ）
+  guaranteeCut: 1,   // 家賃保証で差し引かれる額（月・万円）
+};
+
 /**
  * 元利均等返済（毎月の返済額が同じになる返し方）で、毎月のローン返済額を計算する。
  * @param {number} loanMan 借入額（万円）
@@ -97,5 +112,5 @@ function calculateRealEstate(inputs) {
 
 // Node.js（テスト）から require で使えるようにする。ブラウザには module がないので何もしない
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateLoanPayment, calculateRentIncome, calculateExpenses, calculateRealEstate };
+  module.exports = { calculateLoanPayment, calculateRentIncome, calculateExpenses, calculateRealEstate, RE_DEFAULT_INPUTS };
 }

@@ -5,14 +5,11 @@
  */
 const test = require("node:test");
 const assert = require("node:assert");
-const { calculateRentIncome, calculateRealEstate } = require("../js/realestate_calc.js");
+const { calculateRentIncome, calculateRealEstate, RE_DEFAULT_INPUTS } = require("../js/realestate_calc.js");
 const { formatMan, formatManSigned } = require("../js/format.js");
 
 // 画面の初期値（仕様書 2-2）。テストでは必要な項目だけ上書きして使う
-const DEFAULT_INPUTS = {
-  rent: 8, vacancy: 5, loan: 2000, rate: 1.8, years: 35,
-  fee: 1.5, management: 5, tax: 8, hasGuarantee: false, guaranteeCut: 1,
-};
+const DEFAULT_INPUTS = RE_DEFAULT_INPUTS;
 
 /**
  * 初期値に、テストで変えたい項目だけを上書きした入力値を作る。
@@ -82,4 +79,30 @@ test("AC-15：家賃保証オフの計算は、ファイル分けの前の式と
   assert.strictEqual(result.income, oldIncome);
   assert.strictEqual(result.expenses, oldExpenses);
   assert.strictEqual(result.monthlyCashFlow, oldIncome - oldPayment - oldExpenses);
+});
+
+test("AC-77：初期値（家賃10・借入2000・金利2・35年・空室5・管理費1・手数料5・税10）の結果", function () {
+  const result = calculateRealEstate(RE_DEFAULT_INPUTS);
+  assert.strictEqual(formatMan(result.payment), "6.6万円");
+  assert.strictEqual(formatMan(result.income), "9.5万円");
+  assert.strictEqual(formatMan(result.expenses), "2.3万円");
+  assert.strictEqual(formatManSigned(result.monthlyCashFlow), "+0.5万円");
+  assert.strictEqual(formatManSigned(result.annualCashFlow), "+6.5万円");
+  assert.ok(result.monthlyCashFlow >= 0); // 緑で表示される
+});
+
+test("AC-79：index.html の入力欄の初期値が RE_DEFAULT_INPUTS と同じ", function () {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf-8");
+  const idToKey = {
+    "r-rent": "rent", "r-vac": "vacancy", "r-loan": "loan", "r-rate": "rate", "r-yrs": "years",
+    "r-fee": "fee", "r-pm": "management", "r-tax": "tax", "r-guar-cut": "guaranteeCut",
+  };
+  Object.keys(idToKey).forEach(function (id) {
+    const match = html.match(new RegExp('id="' + id + '"[^>]*value="([^"]*)"'));
+    assert.ok(match, id + " の入力欄が見つかりません");
+    assert.strictEqual(Number(match[1]), RE_DEFAULT_INPUTS[idToKey[id]], id);
+  });
+  assert.ok(!/id="r-guar"[^>]*checked/.test(html)); // 家賃保証はオフ
 });

@@ -1,7 +1,7 @@
 /*
  * realestate_view.js：マンションの入力欄を読み、計算結果を画面に表示する
  * 主な関数：readRealEstateInputs（入力欄を読む）、updateRealEstateView（結果を表示する）
- * main.js から呼ばれる。計算は realestate_calc.js、表示形式は format.js に任せる。
+ * main.js から呼ばれる。計算は realestate_calc.js、読み方の一言は reading_text.js、表示形式は format.js に任せる。
  */
 
 // 入ってくる家賃のラベル。家賃保証がオンのときだけ「家賃保証あり」をつける
@@ -67,6 +67,7 @@ function updateRealEstateView() {
   }
   cashFlowArea.className = "big " + colorClass;
 
+  fillSegments(document.getElementById("r-read"), buildRealEstateReading(result.monthlyCashFlow));
   document.getElementById("r-cfy").textContent = formatManSigned(result.annualCashFlow);
   document.getElementById("r-pay").textContent = formatMan(result.payment);
   document.getElementById("r-in").textContent = formatMan(result.income);

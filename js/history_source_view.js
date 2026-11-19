@@ -1,11 +1,16 @@
 /*
- * history_source_view.js：資産ボタン・年度リスト・出典・「使ったデータを見る」の表を画面に出す
- * 主な関数：renderAssetButtons、fillYearOptions、renderAssetName、renderSource
+ * history_source_view.js：資産ボタン（資産ごとの「何か」の一言つき）・年度リスト・出典・年度ごとの収益率の表を画面に出す
+ * 主な関数：renderAssetButtons（ASSET_DESCRIPTIONS の一言を添える）、fillYearOptions、renderAssetName、renderSource、renderDataTable
  * history_view.js から使われる。表示だけで、計算はしない。dom_helper.js・format.js・history_data.js を使う。
  */
 
-// 資産の名前を2行に分けるときの、1行目の文字数（「国内株式」→「国内／株式」。ボタンを同じ幅にそろえるため）
-const ASSET_LABEL_FIRST_LINE_LENGTH = 2;
+// 資産ごとの「何か」の説明（1行だけ。値動きの大きさなどの向きは書かない。仕様 7-2）。並びはデータの順で固定
+const ASSET_DESCRIPTIONS = {
+  dstock: "日本の会社の株",
+  fstock: "海外の会社の株",
+  dbond: "日本の国などに貸す",
+  fbond: "海外の国などに貸す",
+};
 
 /**
  * 資産名「国内株式（年金の運用実績）」から、ボタンに出す短い名前（かっこの前）を取り出す。
@@ -33,12 +38,9 @@ function renderAssetButtons(assets, onChange) {
     input.value = asset.id;
     input.checked = index === 0;
     input.addEventListener("change", onChange);
-    const shortName = getShortAssetName(asset.name);
-    const text = createElement("span", "", shortName.slice(0, ASSET_LABEL_FIRST_LINE_LENGTH));
-    text.appendChild(document.createElement("br"));
-    text.appendChild(document.createTextNode(shortName.slice(ASSET_LABEL_FIRST_LINE_LENGTH)));
     label.appendChild(input);
-    label.appendChild(text);
+    label.appendChild(createElement("span", "", getShortAssetName(asset.name)));
+    label.appendChild(createElement("small", "", ASSET_DESCRIPTIONS[asset.id] || ""));
     group.appendChild(label);
   });
 }
@@ -81,10 +83,7 @@ function renderAssetName(asset) {
 function renderSource(source) {
   const list = document.getElementById("f-src");
   clearChildren(list);
-  const link = createElement("a", "", source.url);
-  link.href = source.url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
+  const link = createExternalLink(source.url, source.url);
   const siteCell = createElement("dd", "", "GPIFウェブサイト（");
   siteCell.appendChild(link);
   siteCell.appendChild(document.createTextNode("）"));
@@ -97,7 +96,7 @@ function renderSource(source) {
 }
 
 /**
- * 年度ごとの収益率の表（2列に折り返す）を作り、説明文と一緒に「使ったデータを見る」の中へ入れる。
+ * 年度ごとの収益率の表（2列に折り返す）を作り、説明文と一緒に「くわしく知りたい人へ」の中へ入れる。
  * 色分けはしない（良い年度が目立たないようにするため）。
  * @param {Object} asset 選んでいる資産
  * @returns {void}

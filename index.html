@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!--
-  index.html：画面の骨組み（入力欄・結果欄・注意書き）だけを書く入口のファイル。
-  見た目は css/style.css、計算は js/*_calc.js、表示は js/*_view.js、データは data/gpif_returns.js、タブは js/tabs.js、流れは js/main.js。
+  index.html：画面の骨組み（問いかけ・入力欄・結果欄・注意書き）だけを書く入口のファイル。
+  見た目は css/style.css、計算は js/*_calc.js・history_run.js・period_choice.js、文は js/reading_text.js、
+  表示は js/*_view.js、データは data/gpif_returns.js、切り替えは js/page_switch.js・nisa_mode_switch.js、流れは js/main.js。
   ブラウザで直接開くだけで動く（サーバー・インターネット接続は不要）。
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,122 +13,226 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>おかね収支シミュレーター</h1>
-    <p>数字を入れるだけ。計算は端末の中だけで行い、入力内容はどこにも送信されません。</p>
-  </header>
 
-  <div class="tabs">
-    <button id="t-nisa" class="on">NISA積立</button>
-    <button id="t-re">マンション収支</button>
-  </div>
+<!-- 上のバー：左上「← Yu」で portal へ（3つのツールで共通） -->
+<nav class="bar" aria-label="サイトのメニュー"><div class="wrap">
+  <a class="bar-logo" href="https://yu-ceo.github.io/" aria-label="Yuのページへ戻る">← Yu</a>
+  <span class="bar-name">おかね収支シミュレーター</span>
+</div></nav>
 
-  <!-- NISA -->
-  <section id="p-nisa">
-    <!-- 計算方法の切り替え（最初は「利回りを自分で入れる」） -->
-    <fieldset class="seg mode" role="radiogroup" aria-label="計算のしかた">
-      <label><input type="radio" name="mode" value="manual" checked><span>利回りを自分で入れる</span></label>
-      <label><input type="radio" name="mode" value="history"><span>過去の実績で計算する<small>年金の運用実績</small></span></label>
-    </fieldset>
+<!-- 1. 答え：何が分かるツールかを問いかけ1行で（入力に合わせて js/question_view.js が言い方を変える） -->
+<header class="hero"><div class="wrap">
+  <p class="eyebrow">無料・登録なし</p>
+  <h1 id="q">毎月3万円を20年続けたら、いくらになる？</h1>
+  <p class="lead">数字を入れるだけ。計算は端末の中だけで行い、入力内容はどこにも送信されません。</p>
+</div></header>
 
-    <!-- 利回りを自分で入れる（v1 のまま） -->
-    <div id="m-manual">
-      <div class="card">
-        <label class="f">毎月の積立額<span class="in"><input id="n-m" type="number" inputmode="decimal" value="3" min="0" step="0.1"><span class="unit">万円</span></span></label>
-        <label class="f">積み立てる年数<span class="in"><input id="n-y" type="number" inputmode="numeric" value="20" min="1" max="50"><span class="unit">年</span></span></label>
-        <label class="f">想定の利回り（年）<span class="in"><input id="n-r" type="number" inputmode="decimal" value="4" min="0" max="20" step="0.1"><span class="unit">%</span></span></label>
-      </div>
-      <div class="card" aria-live="polite">
-        <div class="label">最終的な金額（想定）</div>
-        <div class="big" id="n-total">-</div>
-        <div class="row">積み立てた元本<b id="n-prin">-</b></div>
-        <div class="row">増えた分（想定）<b id="n-gain" class="plus">-</b></div>
-        <div class="warn" id="n-warn" hidden></div>
-      </div>
-    </div>
+<main class="wrap">
 
-    <!-- 過去の実績で計算する（v2.1）。資産ボタン・年度リスト・結果・出典は js/history_view.js が入れる -->
-    <div id="m-history" hidden>
-      <!-- データを読み込めなかったとき -->
-      <div class="card fail" id="f-fail" hidden>
-        <p class="err">運用実績のデータを読み込めませんでした。</p>
-        <p class="note">ページを読み込み直すと直ることがあります。「利回りを自分で入れる」はそのまま使えます。</p>
-        <button class="btn" type="button" id="f-back">利回りを自分で入れる に切り替える</button>
-      </div>
+<!-- ===== 積立 ===== -->
+<section id="p-nisa">
+  <div class="tool">
+    <!-- 2. 入力（最小の項目だけ） -->
+    <div class="card" id="input-card">
+      <h2 class="step"><span>1</span>条件を入れる</h2>
 
-      <div id="f-main">
-        <div class="card">
-          <div class="block">
-            <p class="cite">データ：GPIFの公表値を引用</p>
-            <fieldset class="seg" id="f-asset" aria-label="資産"><legend>資産（年金の運用実績）</legend></fieldset>
-            <p class="asset-name" id="f-asset-name"></p>
-            <p class="example">表示しているのは年金積立金管理運用独立行政法人（GPIF）の資産ごとの運用実績です。個人が買える特定の商品の成績ではなく、特定の商品をすすめるものでもありません。このツールは GPIF とは関係ありません。</p>
-          </div>
-          <label class="f">毎月の積立額<span class="in"><input id="f-m" type="number" inputmode="decimal" value="3" min="0" step="0.1"><span class="unit">万円</span></span></label>
-          <label class="f nob">信託報酬など（年）<span class="in"><input id="f-fee" type="number" inputmode="decimal" value="0" min="0" max="5" step="0.01"><span class="unit">%</span></span></label>
-          <p class="feenote">年金の運用実績は、個人が払う信託報酬とは別のものです。ご自身の商品の信託報酬を入れると、その分を差し引いて計算します。</p>
-          <label class="f"><span>運用開始年度</span><span class="in"><select id="f-start" class="yr"></select><span class="unit">年度から</span></span></label>
-          <label class="f nob"><span>運用終了年度<small>翌年3月末まで</small></span><span class="in"><select id="f-end" class="yr"></select><span class="unit">年度まで</span></span></label>
-          <p class="fyear"><span id="f-fy-ex"></span>年度は4月〜翌年3月です（GPIF の運用実績が年度単位のため）。</p>
-          <div class="block last">
-            <fieldset class="seg" id="f-tax" aria-label="口座"><legend>口座</legend>
-              <label><input type="radio" name="tax" value="nisa" checked><span>NISA（非課税）</span></label>
-              <label><input type="radio" name="tax" value="taxable"><span>課税口座</span></label>
-            </fieldset>
-          </div>
+      <div class="field">
+        <label class="q" for="n-m">毎月いくら積み立てる？</label>
+        <div class="row-in">
+          <span class="in"><input id="n-m" type="number" inputmode="decimal" value="3" min="0" step="0.1"><span class="unit">万円</span></span>
+          <span class="chips" data-for="n-m"><button type="button" class="chip" data-v="1">1万</button><button type="button" class="chip" data-v="3">3万</button><button type="button" class="chip" data-v="5">5万</button></span>
         </div>
+      </div>
 
-        <!-- 結果 -->
-        <div class="card" id="f-result" aria-live="polite"></div>
+      <div class="field">
+        <label class="q" for="n-y">何年つづける？</label>
+        <div class="row-in">
+          <span class="in"><input id="n-y" type="number" inputmode="numeric" value="20" min="1" max="50"><span class="unit">年</span></span>
+          <span class="chips" data-for="n-y"><button type="button" class="chip" data-v="10">10年</button><button type="button" class="chip" data-v="20">20年</button><button type="button" class="chip" data-v="30">30年</button></span>
+        </div>
+      </div>
 
-        <!-- 出典と使ったデータ -->
-        <div class="card src">
-          <h2>この計算に使った資料（出典）</h2>
-          <dl id="f-src"></dl>
-          <details id="f-data">
-            <summary>使ったデータを見る（年度ごとの収益率）</summary>
-            <p class="note" id="f-data-note"></p>
-            <div id="f-table"></div>
+      <div class="field">
+        <!-- 計算のしかたの切り替え（最初は「利回りを自分で入れる」） -->
+        <fieldset class="seg" role="radiogroup" aria-label="増え方の決め方">
+          <legend>増え方は、どう決める？</legend>
+          <label><input type="radio" name="mode" value="manual" checked><span>利回りを自分で入れる</span><small>毎年同じ%で増える計算</small></label>
+          <label><input type="radio" name="mode" value="history"><span>過去の実績で計算する</span><small>年金の運用実績</small></label>
+        </fieldset>
+      </div>
+
+      <!-- 利回りを自分で入れる -->
+      <div id="m-manual">
+        <div class="field">
+          <label class="q" for="n-r">1年で何%増える？<small>（想定の利回り）</small></label>
+          <div class="row-in">
+            <span class="in"><input id="n-r" type="number" inputmode="decimal" value="4" min="0" max="20" step="0.1"><span class="unit">%</span></span>
+            <span class="chips" data-for="n-r"><button type="button" class="chip" data-v="2">2%</button><button type="button" class="chip" data-v="4">4%</button><button type="button" class="chip" data-v="6">6%</button></span>
+          </div>
+          <p class="help" id="r-ex"></p>
+        </div>
+      </div>
+
+      <!-- 過去の実績で計算する。資産ボタンは js/history_view.js が入れる -->
+      <div id="m-history" hidden>
+        <div id="f-inputs">
+          <div class="field">
+            <p class="cite">データ：GPIFの公表値を引用</p>
+            <fieldset class="seg" id="f-asset" aria-label="資産"><legend>どの資産の実績で計算する？</legend></fieldset>
+            <p class="asset-name" id="f-asset-name"></p>
+          </div>
+          <div class="field">
+            <fieldset class="seg" id="f-when" aria-label="期間"><legend>いつの期間で計算する？</legend>
+              <label><input type="radio" name="when" value="future" checked><span>これから</span><small id="f-when-future"></small></label>
+              <label><input type="radio" name="when" value="past"><span>過去の実際の期間</span><small id="f-when-past"></small></label>
+            </fieldset>
+            <p class="period" id="f-period"></p>
+          </div>
+
+          <!-- 細かい設定は畳む（年度・商品の手数料・口座）。閉じていても今の値を見出しに出す -->
+          <details class="more" id="f-more">
+            <summary>細かく選ぶ<small id="f-more-now"></small></summary>
+            <div class="more-body">
+              <div class="field">
+                <span class="q">年度で選ぶ</span>
+                <div class="yrs">
+                  <label class="in"><select id="f-start" aria-label="運用開始年度"></select><span class="unit">年度から</span></label>
+                  <label class="in"><select id="f-end" aria-label="運用終了年度"></select><span class="unit">年度まで</span></label>
+                </div>
+                <p class="fyear"><span id="f-fy-ex"></span>年度は4月〜翌年3月です（GPIF の運用実績が年度単位のため）。</p>
+              </div>
+              <div class="field">
+                <label class="q" for="f-fee">商品の手数料<small>（信託報酬など・年）</small></label>
+                <span class="in"><input id="f-fee" type="number" inputmode="decimal" value="0" min="0" max="5" step="0.01"><span class="unit">%</span></span>
+                <p class="feenote">年金の運用実績は、個人が払う信託報酬とは別のものです。ご自身の商品の信託報酬を入れると、その分を差し引いて計算します。分からなければ0のままで計算できます。</p>
+              </div>
+              <div class="field">
+                <fieldset class="seg one" id="f-tax" aria-label="口座"><legend>口座</legend>
+                  <label><input type="radio" name="tax" value="nisa" checked><span>NISA（非課税）</span></label>
+                  <label><input type="radio" name="tax" value="taxable"><span>課税口座</span></label>
+                </fieldset>
+              </div>
+            </div>
           </details>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- 不動産 -->
-  <section id="p-re" hidden>
-    <div class="card">
-      <label class="f">家賃（月）<span class="in"><input id="r-rent" type="number" value="8" min="0" step="0.1"><span class="unit">万円</span></span></label>
-      <label class="f">空室を見込む割合<span class="in"><input id="r-vac" type="number" value="5" min="0" max="100"><span class="unit">%</span></span></label>
-      <label class="f">ローンの借入額<span class="in"><input id="r-loan" type="number" value="2000" min="0"><span class="unit">万円</span></span></label>
-      <label class="f">金利（年）<span class="in"><input id="r-rate" type="number" value="1.8" min="0" max="15" step="0.05"><span class="unit">%</span></span></label>
-      <label class="f">返済の年数<span class="in"><input id="r-yrs" type="number" value="35" min="1" max="50"><span class="unit">年</span></span></label>
-      <label class="f">管理費＋修繕積立金（月）<span class="in"><input id="r-fee" type="number" value="1.5" min="0" step="0.1"><span class="unit">万円</span></span></label>
-      <label class="f">管理会社への手数料<span class="in"><input id="r-pm" type="number" value="5" min="0" max="30" step="0.5"><span class="unit">%</span></span></label>
-      <label class="f">固定資産税など（年）<span class="in"><input id="r-tax" type="number" value="8" min="0" step="0.5"><span class="unit">万円</span></span></label>
-      <label class="f">空室のときも家賃保証がある<span class="in"><input id="r-guar" type="checkbox"><span class="unit"></span></span></label>
-      <label class="f" id="r-guar-cut-row" hidden>空室のとき差し引かれる額（月）<span class="in"><input id="r-guar-cut" type="number" value="1" min="0" step="0.1"><span class="unit">万円</span></span></label>
+    <!-- 3. 結果＋読み方の一言 → 4. 次の行動 -->
+    <div class="res-col">
+      <!-- 利回りを自分で入れる：結果 -->
+      <div class="card" id="n-result" aria-live="polite">
+        <h2 class="step"><span>2</span>結果</h2>
+        <div class="label" id="n-label">最終的な金額（想定）</div>
+        <div class="big" id="n-total">-</div>
+        <div class="stack" aria-hidden="true"><span class="p" id="n-bar-p"></span><span class="g" id="n-bar-g"></span></div>
+        <div class="rowv"><span><i class="legend-prin"></i>入れたお金（元本）</span><b id="n-prin">-</b></div>
+        <div class="rowv"><span><i class="legend-gain"></i>増えた分（想定）</span><b id="n-gain" class="plus">-</b></div>
+        <p class="read" id="n-read"></p>
+        <p class="short" id="n-short"></p>
+        <p class="warn" id="n-warn" hidden></p>
+      </div>
+
+      <!-- 過去の実績：データを読み込めなかったとき -->
+      <div class="card fail" id="f-fail" hidden>
+        <h2 class="step"><span>2</span>結果</h2>
+        <p class="err">運用実績のデータを読み込めませんでした。</p>
+        <p class="help">ページを読み込み直すと直ることがあります。「利回りを自分で入れる」はそのまま使えます。</p>
+        <div class="next">
+          <button class="btn btn-main" type="button" id="f-reload">ページを読み込み直す</button>
+          <button class="btn btn-sub" type="button" id="f-back">利回りを自分で入れる に切り替える</button>
+        </div>
+      </div>
+
+      <!-- 過去の実績：結果（中身は js/history_view.js が入れる） -->
+      <div class="card" id="f-result" aria-live="polite" hidden>
+        <h2 class="step"><span>2</span>結果</h2>
+        <div id="f-result-body"></div>
+      </div>
+
+      <!-- 4. 次の行動（3つのツールで共通） -->
+      <div class="next" id="next-nisa">
+        <button class="btn btn-main" type="button" data-again="input-card">条件を変えてもう一度</button>
+        <a class="btn btn-sub" href="https://yu-ceo.github.io/">Yuのページへ戻る</a>
+      </div>
     </div>
-    <div class="card">
-      <div class="label">毎月の手元に残るお金（税金の計算前）</div>
-      <div class="big" id="r-cf">-</div>
-      <div class="row">年間にすると<b id="r-cfy">-</b></div>
-      <div class="row">ローン返済（月）<b id="r-pay">-</b></div>
-      <div class="row"><span id="r-in-label">入ってくる家賃（空室を考慮）</span><b id="r-in">-</b></div>
-      <div class="row">出ていくお金（返済以外）<b id="r-out">-</b></div>
-      <p class="note" id="r-guar-note" hidden>※家賃保証の条件（差し引かれる額・免責期間など）は契約によって違います。契約書でご確認ください。</p>
-      <p class="note">※所得税・住民税の増減（減価償却など）は含みません。実際の税額は税理士や税務署でご確認ください。</p>
+  </div>
+
+  <!-- 5. くわしく知りたい人へ（出典の資料名・確認日・使ったデータ・計算のしかた）。消さずに畳む -->
+  <details class="card info" id="info-nisa">
+    <summary>くわしく知りたい人へ（出典・計算のしかた）</summary>
+    <div class="info-body">
+      <div id="info-history" hidden>
+        <h3>この計算に使った資料（出典）</h3>
+        <div class="src"><dl id="f-src"></dl></div>
+        <h3>使ったデータ（年度ごとの収益率）</h3>
+        <p id="f-data-note"></p>
+        <div id="f-table"></div>
+        <h3>将来の幅の出し方</h3>
+        <p>データの最後の年度より後は、選んだ資産の過去の年度ごとの収益率から、まんなか（中央＝過去の年平均の伸び率）と、低いほう・高いほう（中央 ± ばらつき÷√将来の年数）の3通りで計算しています。乱数は使わないので、同じ入力なら同じ結果になります。</p>
+      </div>
+      <div id="info-manual">
+        <h3>計算のしかた</h3>
+        <p>毎月末に積み立て、入れた%（年）を12で割った割合で、毎月増える（複利）として計算しています。実際の増え方は年ごとに上下します。</p>
+      </div>
     </div>
-  </section>
+  </details>
 
-  <p class="note">
-    このツールは、入力された数字をもとに計算するだけのものです。特定の商品や売買をすすめるものではなく、将来の結果を約束するものでもありません。
-    想定の利回り・金利は仮の数字です。実際の判断はご自身の責任で、必要に応じて専門家にご相談ください。
-  </p>
-</div>
+  <!-- ほかの計算（マンション収支）。目立たせない -->
+  <div class="card other">
+    <p>ほかの計算：マンションを貸したときの毎月の収支</p>
+    <button class="btn btn-sub" type="button" id="go-re">マンション収支へ</button>
+  </div>
+</section>
 
-<!-- 読み込む順番に意味がある：データ → 表示形式と計算 → 表示の部品 → 表示 → 切り替え → 入口（main.js が最後） -->
+<!-- ===== マンション収支 ===== -->
+<section id="p-re" hidden>
+  <button class="btn btn-sub back-link" type="button" id="go-nisa">← 積立の計算に戻る</button>
+  <div class="tool">
+    <div class="card" id="re-input">
+      <h2 class="step"><span>1</span>条件を入れる</h2>
+      <div class="field"><label class="q" for="r-rent">家賃（月）</label><span class="in"><input id="r-rent" type="number" inputmode="decimal" value="8" min="0" step="0.1"><span class="unit">万円</span></span></div>
+      <div class="field"><label class="q" for="r-loan">ローンの借入額</label><span class="in"><input id="r-loan" type="number" inputmode="decimal" value="2000" min="0"><span class="unit">万円</span></span></div>
+      <div class="field"><label class="q" for="r-rate">金利（年）</label><span class="in"><input id="r-rate" type="number" inputmode="decimal" value="1.8" min="0" max="15" step="0.05"><span class="unit">%</span></span></div>
+      <div class="field"><label class="q" for="r-yrs">返済の年数</label><span class="in"><input id="r-yrs" type="number" inputmode="numeric" value="35" min="1" max="50"><span class="unit">年</span></span></div>
+      <details class="more" id="r-more">
+        <summary>細かく選ぶ<small>空室・管理費・手数料・税金・家賃保証（初期値で計算中）</small></summary>
+        <div class="more-body">
+          <div class="field"><label class="q" for="r-vac">空室を見込む割合</label><span class="in"><input id="r-vac" type="number" inputmode="decimal" value="5" min="0" max="100"><span class="unit">%</span></span></div>
+          <div class="field"><label class="q" for="r-fee">管理費＋修繕積立金（月）</label><span class="in"><input id="r-fee" type="number" inputmode="decimal" value="1.5" min="0" step="0.1"><span class="unit">万円</span></span></div>
+          <div class="field"><label class="q" for="r-pm">管理会社への手数料</label><span class="in"><input id="r-pm" type="number" inputmode="decimal" value="5" min="0" max="30" step="0.5"><span class="unit">%</span></span></div>
+          <div class="field"><label class="q" for="r-tax">固定資産税など（年）</label><span class="in"><input id="r-tax" type="number" inputmode="decimal" value="8" min="0" step="0.5"><span class="unit">万円</span></span></div>
+          <div class="field"><label class="check"><input id="r-guar" type="checkbox">空室のときも家賃保証がある</label></div>
+          <div class="field" id="r-guar-cut-row" hidden><label class="q" for="r-guar-cut">空室のとき差し引かれる額（月）</label><span class="in"><input id="r-guar-cut" type="number" inputmode="decimal" value="1" min="0" step="0.1"><span class="unit">万円</span></span></div>
+        </div>
+      </details>
+    </div>
+    <div class="res-col">
+      <div class="card" aria-live="polite">
+        <h2 class="step"><span>2</span>結果</h2>
+        <div class="label">毎月の手元に残るお金（税金の計算前）</div>
+        <div class="big" id="r-cf">-</div>
+        <p class="read" id="r-read"></p>
+        <div class="rowv">年間にすると<b id="r-cfy">-</b></div>
+        <div class="rowv">ローン返済（月）<b id="r-pay">-</b></div>
+        <div class="rowv"><span id="r-in-label">入ってくる家賃（空室を考慮）</span><b id="r-in">-</b></div>
+        <div class="rowv">出ていくお金（返済以外）<b id="r-out">-</b></div>
+        <p class="short" id="r-guar-note" hidden>※家賃保証の条件（差し引かれる額・免責期間など）は契約によって違います。契約書でご確認ください。</p>
+        <p class="short">※所得税・住民税の増減（減価償却など）は含みません。実際の税額は税理士や税務署でご確認ください。</p>
+      </div>
+      <div class="next">
+        <button class="btn btn-main" type="button" data-again="re-input">条件を変えてもう一度</button>
+        <a class="btn btn-sub" href="https://yu-ceo.github.io/">Yuのページへ戻る</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ページ下部の注意書き（文言は変えない・常に表示） -->
+<p class="foot">このツールは、入力された数字をもとに計算するだけのものです。特定の商品や売買をすすめるものではなく、将来の結果を約束するものでもありません。想定の利回り・金利は仮の数字です。実際の判断はご自身の責任で、必要に応じて専門家にご相談ください。</p>
+</main>
+
+<!-- 読み込む順番に意味がある：データ → 表示形式と計算 → 文・期間 → 表示の部品 → 表示 → 切り替え → 入口（main.js が最後） -->
 <script src="data/gpif_returns.js"></script>
 <script src="js/format.js"></script>
 <script src="js/nisa_calc.js"></script>
@@ -137,14 +242,21 @@
 <script src="js/history_range_calc.js"></script>
 <script src="js/tax_calc.js"></script>
 <script src="js/history_run.js"></script>
+<script src="js/period_choice.js"></script>
+<script src="js/reading_text.js"></script>
 <script src="js/dom_helper.js"></script>
+<script src="js/bar_view.js"></script>
 <script src="js/nisa_view.js"></script>
 <script src="js/realestate_view.js"></script>
 <script src="js/history_parts_view.js"></script>
 <script src="js/history_source_view.js"></script>
+<script src="js/history_result_view.js"></script>
 <script src="js/history_view.js"></script>
+<script src="js/question_view.js"></script>
 <script src="js/nisa_mode_switch.js"></script>
-<script src="js/tabs.js"></script>
+<script src="js/page_switch.js"></script>
+<script src="js/preset_buttons.js"></script>
+<script src="js/next_actions.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

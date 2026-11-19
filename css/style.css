@@ -1,150 +1,229 @@
 /*
- * style.css：画面の見た目（色・余白・文字の大きさ）
- * index.html から読み込まれる。計算には関係しない。
- * v2.1：新しい見た目を取り入れた。
- *   入力欄・タブの高さは指で押しやすい44px。切り替え（計算方法・資産・口座）は .seg、年表は .tl、幅の棒は .rbar。
+ * style.css：おかね収支シミュレーターの見た目（色・文字の大きさ・余白は先頭の :root にまとめる）
+ * 3つのツール（simulator・fx-simulator・video-check）で共通の「初心者向けの型」に合わせ、portal の紺・白・グレーに揃える。
+ * 本文16px以上・補足でも13px以上、押す場所は高さ44px以上（主ボタン48px）。360px で横スクロールしない。
  */
-/* 設定値（色・文字の大きさ・余白）。ここを変えると全体が変わる */
+
 :root{
-  /* 色：公開中の v1 と同じ */
-  --bg:#0f1220;        /* 画面の背景 */
-  --card:#181c2f;      /* カードの背景 */
-  --line:#2a3050;      /* 枠線・区切り線 */
-  --text:#e8eaf6;      /* 本文の文字 */
-  --sub:#9aa0c3;       /* 補足の文字（カード上でコントラスト約6.9:1） */
-  --accent:#8b7cff;    /* 選ばれている枠・幅の棒（どの資産でも同じ色） */
-  --accent-bg:#231f4a; /* 選ばれているボタンの背景 */
-  --plus:#4fd1a5;      /* プラスの金額 */
-  --minus:#ff7a90;     /* マイナスの金額 */
-  --warn:#ffcf6b;      /* 注意文（制度の上限・税金） */
-  --input-bg:#0c0f1c;  /* 入力欄の背景 */
-  --future:#5a5f86;    /* 年表の「めやす（将来）」の部分 */
-  /* 文字の大きさ（360px幅で 1rem=16px） */
-  --fs-h1:1.4rem;      /* ページ名 */
-  --fs-big:2rem;       /* 結果の大きな数字（1つの数字のとき） */
-  --fs-range:1.5rem;   /* 結果の大きな数字（幅のとき。360pxで1行〜2行に収まる大きさ） */
-  --fs-body:1rem;      /* 入力・本文 */
-  --fs-label:.95rem;   /* 入力のラベル */
-  --fs-small:.85rem;   /* 注意文・補足 */
-  --fs-note:.8rem;     /* 注意書き（v1 の .78rem から少しだけ大きく） */
+  /* 色：portal に合わせる（上は夜の紺、下は白・薄いグレーのパネル） */
+  --hero-bg:#0a0e17;      /* 上の「問いかけ」の背景（portal と同じ） */
+  --hero-text:#ffffff;    /* 上の文字 */
+  --hero-sub:#c3c8d2;     /* 上の説明文（背景に対して約11:1） */
+  --hero-accent:#7cc4ff;  /* 上の小見出し（約10:1） */
+  --bg:#f2f3f5;           /* 画面の背景（薄いグレー） */
+  --card:#ffffff;         /* カードの背景（白） */
+  --panel:#f7f8fa;        /* 選ばれた箱・3つの箱・幅の注意の薄いグレー面 */
+  --panel-soft:#fafbfc;   /* 畳む欄の背景 */
+  --input-line:#b9bec7;   /* 入力欄の枠線 */
+  --track-soft:#eef0f3;   /* 年度の帯（めやす）の斜線の間の色 */
+  --line:#d9dbe0;         /* 枠線・区切り線 */
+  --text:#16171a;         /* 本文（ほぼ黒） */
+  --sub:#5b5f66;          /* 補足・注意（白の上で約6.4:1） */
+  --ink:#16171a;          /* 選ばれているボタン・主ボタンの塗り（黒） */
+  --ink-text:#ffffff;     /* その上の文字 */
+  --accent:#2563b8;       /* 差し色：増えた分の棒・幅の棒・リンク（白の上で約5.9:1）。どの資産でも同じ色 */
+  --accent-soft:#e3edf9;  /* 差し色のうすい面（読み方の一言の背景） */
+  --prin:#a3a9b4;         /* 入れたお金（元本）の棒 */
+  --future:#b9c0cc;       /* 年表の「めやす（将来）」の斜線 */
+  --plus:#127a3e;         /* プラスの金額（白の上で約5.6:1） */
+  --minus:#b42318;        /* マイナスの金額（約6.5:1） */
+  --warn-text:#7a4b00;    /* 制度の上限・税金・エラーの文字 */
+  --warn-bg:#fff4dc;      /* 同じく背景 */
+  --focus:#3b82f6;        /* キーボード操作のときの枠（portal と同じ） */
+  /* 文字の大きさ（本文16px以上・補足でも13px以上） */
+  --fs-h1:clamp(24px,6.6vw,34px); /* 問いかけ */
+  --fs-big:2rem;          /* 結果の大きな数字（1つの数字） */
+  --fs-range:1.5rem;      /* 結果の大きな数字（幅。360pxで1〜2行） */
+  --fs-body:16px;         /* 本文・入力・ボタン */
+  --fs-small:14px;        /* 補足・注意 */
+  --fs-mid:15px;          /* 読み方の一言・ボタン・一覧の行の文字 */
+  --fs-step:17px;         /* 「1 条件を入れる」などの見出し */
+  --fs-logo:18px;         /* 左上「← Yu」 */
+  --fs-note:13px;         /* いちばん小さい文字（これより小さくしない） */
   /* 余白・形 */
-  --pad-page:16px;     /* 画面の左右の余白 */
-  --pad-card:18px;     /* カードの内側 */
-  --gap:16px;          /* カードどうしの間 */
+  --pad-page:16px;        /* 画面の左右の余白 */
+  --pad-card:16px;        /* カードの内側（360pxで中身の幅296px） */
+  --gap:16px;             /* カードどうしの間 */
   --radius-card:16px;
   --radius-btn:12px;
-  --tap:44px;          /* 指で押すものの最小の高さ */
+  --tap:44px;             /* 指で押すものの最小の高さ */
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--text);
-  font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
-  padding:24px var(--pad-page) 96px;line-height:1.6;overflow-x:hidden}
-.wrap{max-width:560px;margin:0 auto}
-header h1{font-size:var(--fs-h1);margin:0 0 4px}
-header p{color:var(--sub);margin:0 0 20px;font-size:.9rem}
+body{margin:0;background:var(--bg);color:var(--text);font-size:var(--fs-body);line-height:1.65;overflow-x:hidden;
+  font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif}
+.wrap{max-width:640px;margin:0 auto;padding:0 var(--pad-page)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+[hidden]{display:none!important}
 
-/* タブ（v1 のまま。高さだけ44px以上に） */
-.tabs{display:flex;gap:8px;margin-bottom:var(--gap)}
-.tabs button{flex:1;min-height:var(--tap);padding:10px;border-radius:var(--radius-btn);border:1px solid var(--line);
-  background:var(--card);color:var(--sub);font-size:var(--fs-body);cursor:pointer;font-family:inherit}
-.tabs button.on{border-color:var(--accent);color:var(--text);background:var(--accent-bg)}
+/* 上のバー：3ツール共通の「← Yu」（portal へ） */
+.bar{background:var(--hero-bg);border-bottom:1px solid rgba(255,255,255,.08)}
+.bar .wrap{display:flex;align-items:center;justify-content:space-between;min-height:52px}
+.bar-logo{display:inline-flex;align-items:center;min-height:var(--tap);padding:0 8px 0 0;color:var(--hero-text);
+  font-weight:700;font-size:var(--fs-logo);text-decoration:none;letter-spacing:.04em}
+.bar-name{color:var(--hero-sub);font-size:var(--fs-note)}
 
-/* 切り替え（計算方法・資産・口座）。ラジオボタンを横並びのボタンに見せる */
-.seg{display:flex;gap:6px;margin:0;padding:0;border:0;min-width:0}
-.seg legend{font-size:var(--fs-label);padding:0;margin-bottom:6px}
-.seg label{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;text-align:center;
-  min-height:var(--tap);padding:6px 4px;border:1px solid var(--line);border-radius:10px;background:var(--input-bg);
-  color:var(--sub);font-size:.9rem;line-height:1.3;cursor:pointer;border-bottom:1px solid var(--line)}
-.seg input{position:absolute;opacity:0;width:1px;height:1px}
-.seg label:has(input:checked){border-color:var(--accent);background:var(--accent-bg);color:var(--text)}
-.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
-.mode{margin-bottom:var(--gap)}
-.mode label{font-size:.88rem}
-.mode small{display:block;font-size:.75rem;color:var(--sub)}
+/* 1. 答え（問いかけ） */
+.hero{background:var(--hero-bg);color:var(--hero-text);padding:20px 0 28px}
+.eyebrow{margin:0 0 6px;color:var(--hero-accent);font-size:var(--fs-note);font-weight:700;letter-spacing:.06em}
+.hero h1{margin:0 0 10px;font-size:var(--fs-h1);line-height:1.35}
+.hero .lead{margin:0;color:var(--hero-sub);font-size:var(--fs-small)}
 
-/* カード・入力（v1 のまま。入力の高さだけ44pxに） */
+/* カード */
+main{padding-top:var(--gap);padding-bottom:110px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);padding:var(--pad-card);margin-bottom:var(--gap)}
-.f{display:flex;justify-content:space-between;align-items:center;gap:12px;
-  padding:8px 0;border-bottom:1px dashed var(--line);font-size:var(--fs-label)}
-.f:last-child{border-bottom:none}
-.f small{display:block;color:var(--sub);font-size:.75rem}
-.in{display:flex;align-items:center;gap:6px;flex-shrink:0}
-input[type=number],select{width:110px;height:var(--tap);padding:8px 10px;border-radius:8px;border:1px solid var(--line);
-  background:var(--input-bg);color:var(--text);font-size:var(--fs-body);text-align:right;font-family:inherit}
-select{text-align:left;text-align-last:right;padding-right:6px}
-select.yr{width:96px}  /* 年度のリスト。「年度から」と並んでも360pxに収まる幅 */
-input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
-input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
-.unit{color:var(--sub);font-size:var(--fs-small);min-width:2.5em}
-.block{padding:8px 0 12px;border-bottom:1px dashed var(--line)}
-.asset-name{margin:8px 0 0;font-size:var(--fs-small);color:var(--sub)}
-.asset-name b{color:var(--text);font-weight:600}
-.example{margin:6px 0 0;font-size:var(--fs-note);color:var(--sub)}
-.fyear{margin:0 0 4px;padding-bottom:10px;border-bottom:1px dashed var(--line);font-size:var(--fs-note);color:var(--sub)}
-.block.last{border-bottom:none;padding-bottom:0}
-.feenote{margin:-2px 0 0;padding:0 0 10px;font-size:var(--fs-note);color:var(--sub);border-bottom:1px dashed var(--line)}
-.f.nob{border-bottom:none}
-#f-asset label{font-size:.85rem}
+.step{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:var(--fs-step)}
+.step span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;
+  background:var(--ink);color:var(--ink-text);font-size:var(--fs-note)}
 
-/* 結果 */
-.label{color:var(--sub);font-size:var(--fs-note)}
-.big{font-size:var(--fs-big);font-weight:700;margin:4px 0;line-height:1.3;overflow-wrap:anywhere}
+/* 2. 入力：ラベルを上、入力欄と「よく使う値」のボタンを下に並べる */
+.field{padding:12px 0;border-top:1px solid var(--line)}
+.field:first-of-type{border-top:0;padding-top:0}
+.field > .q{display:block;font-weight:700;margin-bottom:8px}
+.field > .q small{font-weight:400;color:var(--sub);font-size:var(--fs-note);margin-left:4px}
+.row-in{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.in{display:flex;align-items:center;gap:6px}
+input[type=number],select{width:72px;height:var(--tap);padding:8px 10px;border-radius:10px;border:1px solid var(--input-line);
+  background:#fff;color:var(--text);font-size:var(--fs-body);text-align:right;font-family:inherit}
+select{width:90px;text-align:left;text-align-last:right;padding-right:6px}
+input:focus,select:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--focus)}
+.unit{color:var(--sub);font-size:var(--fs-small);min-width:1.4em}
+.chips{display:flex;gap:6px}
+.chip{min-width:var(--tap);height:var(--tap);padding:0 9px;border-radius:22px;border:1px solid var(--line);background:#fff;
+  color:var(--text);font-size:var(--fs-mid);font-family:inherit;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--ink-text)}
+.help{margin:8px 0 0;color:var(--sub);font-size:var(--fs-small)}
+.help b{color:var(--text)}
+
+/* 切り替え（増え方・資産・期間・口座）。ラジオボタンを押しやすい箱に見せる */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;padding:0;border:0;min-width:0}
+.seg legend{font-weight:700;padding:0;margin-bottom:8px}
+.seg label{display:flex;flex-direction:column;justify-content:center;min-height:48px;padding:6px 10px;border:1px solid var(--line);
+  border-radius:var(--radius-btn);background:#fff;cursor:pointer;line-height:1.35;font-size:var(--fs-mid)}
+.seg label small{color:var(--sub);font-size:var(--fs-note);margin-top:2px}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label:has(input:checked){border:2px solid var(--ink);padding:5px 9px;background:var(--panel)}
+.seg label:has(input:checked) > span::before{content:"✓ ";font-weight:700}
+.seg label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.seg.one label{min-height:var(--tap)}
+.cite{margin:0 0 8px;color:var(--sub);font-size:var(--fs-note)}  /* 資産の上の小さな引用表示（第23回の決定。GPIF のロゴ・配色は使わない） */
+.asset-name{margin:8px 0 0;font-size:var(--fs-small);color:var(--sub)}
+.asset-name b{color:var(--text)}
+.period{margin:8px 0 0;font-size:var(--fs-small)}
+
+/* 「細かく選ぶ」「くわしく知りたい人へ」：畳んでおく欄 */
+details.more{margin-top:12px;border:1px solid var(--line);border-radius:var(--radius-btn);background:var(--panel-soft)}
+details.more > summary{min-height:var(--tap);display:flex;flex-direction:column;justify-content:center;padding:8px 12px;
+  cursor:pointer;list-style:none;font-weight:700}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::after{content:"＋ 開く";position:absolute;right:28px;font-size:var(--fs-note);color:var(--accent);font-weight:400}
+details.more[open] > summary::after{content:"− 閉じる"}
+details.more > summary{position:relative;padding-right:76px}
+details.more > summary small{font-weight:400;color:var(--sub);font-size:var(--fs-note)}
+.more-body{padding:4px 12px 12px}
+.more-body .field:first-of-type{border-top:1px solid var(--line);padding-top:12px}
+.yrs{display:flex;flex-wrap:wrap;gap:8px 12px}
+.fyear,.feenote{margin:8px 0 0;color:var(--sub);font-size:var(--fs-note)}
+
+/* 3. 結果 */
+.label{color:var(--sub);font-size:var(--fs-small)}
+.big{font-size:var(--fs-big);font-weight:700;margin:2px 0 8px;line-height:1.3;overflow-wrap:anywhere}
 .big.range{font-size:var(--fs-range)}
-.mid{font-size:var(--fs-body);color:var(--sub);margin:0 0 4px}
-.mid b{color:var(--text)}
-.row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:6px 0;color:var(--sub);font-size:.95rem}
-.row b{color:var(--text);white-space:nowrap;margin-left:auto}
-.row.after{border-top:1px dashed var(--line);margin-top:4px;padding-top:10px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:4px 0 0;text-align:center}
+.three div{background:var(--panel);border-radius:8px;padding:6px 2px}
+.three small{display:block;color:var(--sub);font-size:var(--fs-note);line-height:1.3}
+.three b{font-size:var(--fs-mid)}
+.rowv{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:6px 0;color:var(--sub);font-size:var(--fs-mid)}
+.rowv b{color:var(--text);white-space:nowrap;margin-left:auto}
+.rowv.after{border-top:1px dashed var(--line);margin-top:4px;padding-top:10px}
 .plus{color:var(--plus)!important}.minus{color:var(--minus)!important}
-.warn{color:var(--warn);font-size:var(--fs-small);margin-top:8px}
-.note{color:var(--sub);font-size:var(--fs-note)}
-.rangenote{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--accent);background:var(--input-bg);
-  border-radius:0 8px 8px 0;font-size:var(--fs-small);color:var(--text)}
-.hint{color:var(--sub);font-size:var(--fs-small);margin-top:6px}
-.cite{margin:0 0 6px;font-size:var(--fs-note);color:var(--sub)}  /* 資産ボタンの上の小さな引用表示（GPIF のロゴ・配色は使わない） */
-.plain{margin:6px 0 2px;font-size:var(--fs-note);color:var(--text)}  /* 幅の意味をひとことで */
-.ext{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}  /* 過去の最も悪い・よい年度（どの資産でも同じ見た目） */
-.ext .row b{color:var(--text)!important;font-weight:600}
-.err{color:var(--warn);font-size:var(--fs-body);padding:4px 0}
+.read{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:var(--accent-soft);font-size:var(--fs-mid)}  /* 読み方の一言 */
+.read b{font-weight:700}
+.short{margin:8px 0 0;color:var(--sub);font-size:var(--fs-small)}  /* 結果のすぐ近くに常に出す短い注意 */
+.warn{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-text);font-size:var(--fs-small)}
+.rangenote{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--accent);background:var(--panel);border-radius:0 8px 8px 0;font-size:var(--fs-small)}
+.plain{margin:8px 0 0;font-size:var(--fs-small);font-weight:700}
+.gpif{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line);color:var(--sub);font-size:var(--fs-note)}
+.srcline{margin:6px 0 0;font-size:var(--fs-note);color:var(--sub);overflow-wrap:anywhere}
+.srcline a{display:inline-block;padding:10px 0}
+.ext{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.ext .rowv b{font-weight:600}
+.ext .eg{display:block;width:100%;text-align:right;font-size:var(--fs-note);color:var(--sub)}
+.err{color:var(--warn-text);font-weight:700;margin:4px 0 8px}
+
+/* 積み上げの棒（入れたお金＋増えた分）。CSS だけで描く */
+.stack{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--line);margin:4px 0 8px}
+.stack .p{background:var(--prin)} .stack .g{background:var(--accent)}
+.leg{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:var(--fs-note);color:var(--sub)}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 
 /* 年表（どこまでが過去の実績で、どこからがめやすか） */
-.tl{margin:0 0 14px}
+.tl{margin:0 0 12px}
 .tl-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
 .tl-past{background:var(--sub)}
-.tl-fut{background:repeating-linear-gradient(135deg,var(--future) 0 6px,var(--line) 6px 10px)}
-.tl-leg{display:flex;flex-wrap:wrap;gap:2px 14px;margin-top:6px;font-size:var(--fs-note);color:var(--sub)}
-.tl-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.tl-fut{background:repeating-linear-gradient(135deg,var(--future) 0 6px,var(--track-soft) 6px 10px)}
 
-/* 幅の棒（CSSだけ。どの資産でも同じ色） */
-.rbar{position:relative;height:36px;margin:14px 0 4px}
+/* 幅の棒（どの資産でも同じ色） */
+.rbar{position:relative;height:36px;margin:10px 0 4px}
 .rbar .track{position:absolute;left:0;right:0;top:14px;height:8px;border-radius:4px;background:var(--line)}
 .rbar .fill{position:absolute;top:14px;height:8px;border-radius:4px;background:var(--accent)}
 .rbar .dot{position:absolute;top:9px;width:4px;height:18px;margin-left:-2px;border-radius:2px;background:var(--text)}
-.rbar .pr{position:absolute;top:4px;bottom:4px;width:0;border-left:2px dashed var(--sub)}
-.rleg{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:var(--fs-note);color:var(--sub)}
-.rleg i{display:inline-block;vertical-align:-1px;margin-right:4px}
-/* 幅の棒の凡例の印（js/history_parts_view.js が使う）。色は棒と同じ */
-.legend-fill{width:14px;height:6px;border-radius:3px;background:var(--accent)}
-.legend-dot{width:3px;height:12px;background:var(--text)}
-.legend-pr{height:12px;border-left:2px dashed var(--sub)}
+.rbar .pr{position:absolute;top:2px;bottom:2px;width:0;border-left:2px dashed var(--sub)}
 
-/* 出典・データ */
-.src dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:var(--fs-small)}
-.src dt{color:var(--sub)}
-.src dd{margin:0;overflow-wrap:anywhere;min-width:0}
-.src a{color:var(--accent);padding:12px 0;overflow-wrap:anywhere}  /* 文の中のリンク。上下の余白で押せる高さを44px近くに */
-.src h2,.card h2{font-size:1rem;margin:0}
-details{margin-top:12px;border-top:1px dashed var(--line);padding-top:4px}
-summary{min-height:var(--tap);display:flex;align-items:center;cursor:pointer;color:var(--text);font-size:.95rem}
-table{width:100%;border-collapse:collapse;font-size:var(--fs-small);margin-top:4px}
+/* 4. 次の行動（3ツール共通：同じ見た目・同じ場所＝結果のすぐ下） */
+.next{display:grid;gap:8px;margin:0 0 var(--gap)}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:var(--radius-btn);font-size:var(--fs-body);
+  font-weight:700;font-family:inherit;text-decoration:none;cursor:pointer;border:1px solid var(--ink)}
+.btn-main{background:var(--ink);color:var(--ink-text)}
+.btn-sub{background:#fff;color:var(--ink)}
+
+/* 5. くわしく知りたい人へ（出典・データ・計算のしかた） */
+details.info{padding:0}
+details.info > summary{min-height:52px;display:flex;align-items:center;padding:0 var(--pad-card);cursor:pointer;font-weight:700;position:relative;padding-right:84px;list-style:none}
+details.info > summary::-webkit-details-marker{display:none}
+details.info > summary::after{content:"＋ 開く";position:absolute;right:var(--pad-card);font-size:var(--fs-note);color:var(--accent);font-weight:400}
+details.info[open] > summary::after{content:"− 閉じる"}
+.info-body{padding:0 var(--pad-card) var(--pad-card)}
+.info-body h3{font-size:var(--fs-mid);margin:14px 0 6px}
+.info-body p,.info-body li{font-size:var(--fs-small);color:var(--sub);margin:4px 0}
+.src dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:var(--fs-small)}
+.src dt{color:var(--sub)} .src dd{margin:0;overflow-wrap:anywhere;min-width:0}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-small)}
 th,td{padding:6px 4px;white-space:nowrap;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--sub);font-weight:400}
 .cols{columns:2;column-gap:16px}
-.cols table{break-inside:avoid;margin-top:0;display:table}
-.fail{text-align:left}
-.fail p{margin:0 0 12px}
-.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:var(--tap);border-radius:var(--radius-btn);
-  border:1px solid var(--accent);background:var(--accent-bg);color:var(--text);font-size:var(--fs-body);font-family:inherit;cursor:pointer}
-[hidden]{display:none!important}
+.cols table{break-inside:avoid;display:table}
+
+/* ほかの計算（マンション収支への入口。目立たせない） */
+.other{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.other p{margin:0;font-size:var(--fs-small);color:var(--sub)}
+.other .btn{min-height:var(--tap);padding:0 14px;flex-shrink:0;font-size:var(--fs-mid)}
+.back-link{display:inline-flex;align-items:center;min-height:var(--tap);font-size:var(--fs-mid);margin-bottom:8px}
+.foot{color:var(--sub);font-size:var(--fs-note);margin:8px 0 0}
+.fail p{margin:0 0 10px}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--ink)}
+.check{display:flex;align-items:center;gap:10px;min-height:var(--tap);font-weight:700}
+
+/* PC幅：入力と結果を左右に並べる（結果は画面に残す） */
+@media (min-width:960px){
+  .wrap{max-width:1000px}
+  .tool{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);align-items:start}
+  .res-col{position:sticky;top:12px}
+  .tool > .card{margin-bottom:0}
+  .next{grid-template-columns:1fr 1fr}
+}
+/* 凡例の印（積み上げの棒・年度の帯・幅の棒の説明用の小さな四角） */
+i.legend-prin,i.legend-gain,i.legend-past,i.legend-future,i.legend-fill,i.legend-dot,i.legend-pr{display:inline-block;margin-right:6px;vertical-align:-1px}
+i.legend-prin,i.legend-gain{width:12px;height:12px;border-radius:3px}
+i.legend-prin{background:var(--prin)}
+i.legend-gain{background:var(--accent)}
+i.legend-past{width:12px;height:12px;border-radius:3px;background:var(--sub)}
+i.legend-future{width:12px;height:12px;border-radius:3px;background:var(--future)}
+i.legend-fill{width:12px;height:6px;border-radius:3px;background:var(--accent)}
+i.legend-dot{width:3px;height:12px;background:var(--text)}
+i.legend-pr{width:0;height:12px;border-left:2px dashed var(--sub)}
+.fail .next{margin:12px 0 0}
+#f-reset-period{width:100%;margin-top:12px}
+.back-link{padding:0 14px}

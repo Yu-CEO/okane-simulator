@@ -1,8 +1,9 @@
 /*
  * format.js：金額の表示形式と、入力値を数字に直す処理
  * 主な関数：toNonNegativeNumber（入力→0以上の数字）、formatMan（万円の表示）、formatManSigned（+付きの表示）、
- *   formatManShort（「万円」の「円」を省いた表示）、formatPercentSigned（収益率の%表示）
- * nisa_view.js・realestate_view.js・history_*view.js から使われる。tests/format.test.js でテストする。
+ *   formatManShort（「万円」の「円」を省いた表示）、formatPercentSigned（収益率の%表示・小数第2位）、
+ *   formatPercentShort（最も悪かった／よかった年度用の%表示・小数第1位）
+ * nisa_view.js・realestate_view.js・history_*view.js・reading_text.js から使われる。tests/format.test.js でテストする。
  * ブラウザでは普通の <script> で、Node.js（ブラウザの外でJavaScriptを動かす仕組み。テストに使う）では
  * require（Node.jsで別のファイルを読み込む命令）で読み込める形にしている。
  */
@@ -71,28 +72,49 @@ function formatManShort(amountMan) {
   return formatMan(amountMan).replace("万円", "万");
 }
 
-// 収益率の表示で、小数第何位まで出すか（GPIF の資料の表記に合わせて第2位まで）
+// 収益率の表（年度ごとの一覧）で、小数第何位まで出すか（GPIF の資料の表記に合わせて第2位まで）
 const PERCENT_DIGITS = 2;
+// 最も悪かった／よかった年度で出す、小数第何位か（仕様 7-6：小数第1位）
+const PERCENT_DIGITS_SHORT = 1;
 
 /**
- * 収益率（%）を「+14.89%」「−17.05%」の形の文字にする（0 は符号なし）。
+ * 収益率（%）を、指定した小数の桁数で「+14.89%」「−17.05%」の形の文字にする（0 は符号なし）。
  * @param {number} percent 収益率（%）
+ * @param {number} digits 小数第何位まで出すか
  * @returns {string} 表示用の文字
- * @example formatPercentSigned(14.89) // "+14.89%"
- * @example formatPercentSigned(-17.05) // "−17.05%"
  */
-function formatPercentSigned(percent) {
+function formatPercentWithDigits(percent, digits) {
   let sign = "";
   if (percent < 0) {
     sign = MINUS_SIGN;
   } else if (percent > 0) {
     sign = "+";
   }
-  return sign + Math.abs(percent).toFixed(PERCENT_DIGITS) + "%";
+  return sign + Math.abs(percent).toFixed(digits) + "%";
+}
+
+/**
+ * 収益率（%）を小数第2位まで（年度ごとの表用）。
+ * @param {number} percent 収益率（%）
+ * @returns {string} 表示用の文字
+ * @example formatPercentSigned(14.89) // "+14.89%"
+ */
+function formatPercentSigned(percent) {
+  return formatPercentWithDigits(percent, PERCENT_DIGITS);
+}
+
+/**
+ * 収益率（%）を小数第1位まで（最も悪かった／よかった年度用）。
+ * @param {number} percent 収益率（%）
+ * @returns {string} 表示用の文字
+ * @example formatPercentShort(-8) // "−8.0%"
+ */
+function formatPercentShort(percent) {
+  return formatPercentWithDigits(percent, PERCENT_DIGITS_SHORT);
 }
 
 // Node.js（テスト）から require で使えるようにする。module（Node.jsでファイルの外に渡すものを入れる箱）は
 // ブラウザにはないので、ブラウザでは何もしない
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { toNonNegativeNumber, formatMan, formatManSigned, formatManShort, formatPercentSigned };
+  module.exports = { toNonNegativeNumber, formatMan, formatManSigned, formatManShort, formatPercentSigned, formatPercentShort };
 }

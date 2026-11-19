@@ -1,21 +1,41 @@
 /*
- * history_view.js：「過去の実績で計算する」の入力を読み、結果・幅・注意・出典を画面に表示する
- * 主な関数：setupHistoryView（最初の準備）、updateHistoryView（入力を読んで結果を書きかえる）
- * main.js から呼ばれる。計算は history_run.js、部品は history_parts_view.js・history_source_view.js、表示形式は format.js。
+ * history_view.js：「過去の実績で計算する」の入力を読み、期間・結果・出典の表を画面に表示する（流れだけ）
+ * 主な関数：setupHistoryView（最初の準備）、updateHistoryView（入力を読んで書きかえる）、isHistoryReady、getPeriodMode
+ * main.js・nisa_mode_switch.js・question_view.js から呼ばれる。
+ * 計算は history_run.js・period_choice.js、結果の組み立ては history_result_view.js、部品は history_source_view.js。
+ * 毎月の額（n-m）と年数（n-y）は「利回りを自分で入れる」と同じ欄を使う。
  * データ（GPIF_RETURNS）が読み込めなかったときは、「データを読めない」表示にして計算しない。
  */
 
 // 選べる年度の上限。仕様 7-2 で2075年度までと決まっているため
 const LAST_SELECTABLE_YEAR = 2075;
-// 終了年度の初期値は「開始年度＋19」＝20年間（仕様 7-2）
+// 年数の欄が0・空のときに、「期間を戻す」ボタンの文字に使う年数（初期値と同じ20年）
 const DEFAULT_PERIOD_YEARS = 20;
-
-const NOTE_RANGE = "過去の実績をもとにした計算です。将来の結果を保証するものではありません。実際には幅の外になることもあります。";
-const NOTE_RANGE_PLAIN = "過去と同じくらいばらつくと、だいたいこの範囲";
-const NOTE_TAX = "※分配金・売る時期・損益通算などで実際の税額は変わります。";
 
 // 画面で使う資産データ（読み込みに成功したときだけ入る）
 let historyAssets = [];
+// 期間の選び方（period_choice.js の PERIOD_*）。最初は「これから」
+let periodMode = PERIOD_FUTURE;
+// 「過去の実際の期間」で、データが足りず最初の年度からにしたか
+let periodClipped = false;
+// 入力が変わったときに全体を計算し直す関数（main.js から受け取る）
+let notifyHistoryChange = function () {};
+
+/**
+ * データを読み込めて、過去の実績の計算が使える状態か。
+ * @returns {boolean} 使えるなら true
+ */
+function isHistoryReady() {
+  return historyAssets.length > 0;
+}
+
+/**
+ * 今の期間の選び方を返す（問いかけの見出しが使う）。
+ * @returns {string} "future"・"past"・"custom"
+ */
+function getPeriodMode() {
+  return periodMode;
+}
 
 /**
  * 画面で選ばれている資産のデータを返す。
@@ -29,87 +49,39 @@ function getSelectedAsset() {
 }
 
 /**
+ * 「何年つづける？」と「いつの期間？」から、年度のリスト（select）の中身と選択を決め直す。
+ * 「細かく選んだ年度」のときは、利用者が選んだ年度をそのまま使うので触らない。
+ * @returns {void}
+ */
+function applyPeriodChoice() {
+  if (periodMode === PERIOD_CUSTOM) {
+    return;
+  }
+  const years = getYearList(historyAssets[0].returns);
+  const period = calculatePeriodFromChoice({
+    periodMode: periodMode,
+    years: toNonNegativeNumber(document.getElementById("n-y").value),
+    firstYear: years[0],
+    lastYear: years[years.length - 1],
+    maxYear: LAST_SELECTABLE_YEAR,
+  });
+  periodClipped = period.clipped;
+  fillYearOptions(document.getElementById("f-start"), years[0], LAST_SELECTABLE_YEAR, period.startYear);
+  fillYearOptions(document.getElementById("f-end"), years[0], LAST_SELECTABLE_YEAR, period.endYear);
+}
+
+/**
  * 画面の入力欄を読み、計算に渡す形にする（空欄・数字でない・マイナスは v1 と同じく0）。
  * @returns {{monthlyMan:number, feePercent:number, startYear:number, endYear:number, isTaxable:boolean}} 入力
  */
 function readHistoryInputs() {
   return {
-    monthlyMan: toNonNegativeNumber(document.getElementById("f-m").value),
+    monthlyMan: toNonNegativeNumber(document.getElementById("n-m").value),
     feePercent: toNonNegativeNumber(document.getElementById("f-fee").value),
     startYear: parseInt(document.getElementById("f-start").value, 10),
     endYear: parseInt(document.getElementById("f-end").value, 10),
     isTaxable: document.querySelector("input[name=tax]:checked").value === "taxable",
   };
-}
-
-/**
- * 結果が1つの数字のとき（終了年度がデータの最後の年度以前）の表示を足す。
- * @param {HTMLElement} card 結果のカード
- * @param {Object} result runHistory の結果
- * @param {number} endYear 運用終了年度
- * @returns {void}
- */
-function appendSingleResult(card, result, endYear) {
-  card.appendChild(createElement("div", "label", "最終額（過去の実績で計算・" + endYear + "年度末）"));
-  card.appendChild(createElement("div", "big", formatMan(result.totals.mid)));
-  card.appendChild(createRow("積み立てた元本", formatMan(result.principal), "", ""));
-  card.appendChild(createRow("増えた額", formatMan(result.gainMid), gainClassName(result.gainMid), ""));
-  if (result.taxes) {
-    card.appendChild(createRow("税金（約" + TAX_RATE_TEXT + "）", formatMan(result.taxes.mid.tax), "", "after"));
-    card.appendChild(createRow("税引き後の最終額", formatMan(result.taxes.mid.afterTax), "", ""));
-  }
-}
-
-/**
- * 結果が「下 〜 上（中央）」の幅のとき（終了年度がデータの最後の年度より後）の表示を足す。1本の数字にはしない。
- * @param {HTMLElement} card 結果のカード
- * @param {Object} result runHistory の結果
- * @param {number} endYear 運用終了年度
- * @returns {void}
- */
-function appendRangeResult(card, result, endYear) {
-  const totals = result.totals;
-  card.appendChild(createElement("div", "label", "最終額のめやす（下 〜 上・" + endYear + "年度末）"));
-  card.appendChild(createElement("div", "big range", formatManShort(totals.low) + " 〜 " + formatMan(totals.high)));
-  const middle = createElement("p", "mid", "中央 ");
-  middle.appendChild(createElement("b", "", formatMan(totals.mid)));
-  card.appendChild(middle);
-  card.appendChild(createRangeBar(totals.low, totals.mid, totals.high, result.principal));
-  card.appendChild(createElement("p", "plain", NOTE_RANGE_PLAIN));
-  card.appendChild(createElement("p", "rangenote", NOTE_RANGE));
-  card.appendChild(createRow("積み立てた元本", formatMan(result.principal), "", ""));
-  card.appendChild(createRow("増えた額（中央）", formatMan(result.gainMid), gainClassName(result.gainMid), ""));
-  if (result.taxes) {
-    card.appendChild(createRow("税金（中央・約" + TAX_RATE_TEXT + "）", formatMan(result.taxes.mid.tax), "", "after"));
-    card.appendChild(
-      createRow("税引き後の最終額", formatManShort(result.taxes.low.afterTax) + " 〜 " + formatMan(result.taxes.high.afterTax), "", "")
-    );
-    card.appendChild(createRow("（中央）", formatMan(result.taxes.mid.afterTax), "", ""));
-  }
-}
-
-/**
- * 結果の下に出す補足（信託報酬の一言・税金の注意・NISAの上限の注意・積立額0の一言）を足す。
- * @param {HTMLElement} card 結果のカード
- * @param {Object} inputs 入力
- * @param {Object} result runHistory の結果
- * @returns {void}
- */
-function appendResultNotes(card, inputs, result) {
-  if (inputs.feePercent > 0) {
-    card.appendChild(createElement("p", "hint", "信託報酬など 年" + inputs.feePercent + "% を毎年度差し引いています。"));
-  }
-  if (inputs.isTaxable) {
-    card.appendChild(createElement("p", "warn", NOTE_TAX));
-  } else {
-    const warnings = getNisaWarnings(inputs.monthlyMan, result.principal);
-    if (warnings.length > 0) {
-      card.appendChild(createElement("p", "warn", warnings.join(" ")));
-    }
-  }
-  if (inputs.monthlyMan === 0) {
-    card.appendChild(createElement("p", "hint", "毎月の積立額が0のため、結果は0万円です。"));
-  }
 }
 
 /**
@@ -125,66 +97,111 @@ function formatFiscalYearExample(startYear) {
 }
 
 /**
+ * 期間まわりの表示（選択中の2択・「計算する期間」・「細かく選ぶ」の見出し・年度の例）を更新する。
+ * @param {Object} inputs 入力
+ * @param {number} firstYear データの最初の年度
+ * @param {number} lastYear データの最後の年度
+ * @returns {void}
+ */
+function renderPeriodParts(inputs, firstYear, lastYear) {
+  document.querySelectorAll("input[name=when]").forEach(function (radio) {
+    radio.checked = radio.value === periodMode;
+  });
+  document.getElementById("f-when-future").textContent = lastYear + 1 + "年度から";
+  document.getElementById("f-when-past").textContent = lastYear + "年度まで";
+  const showNote = periodClipped && periodMode === PERIOD_PAST;
+  const summary = formatPeriodSummary(inputs.startYear, inputs.endYear, showNote, firstYear);
+  const periodArea = document.getElementById("f-period");
+  periodArea.textContent = summary.main;
+  if (summary.note !== "") {
+    periodArea.appendChild(document.createElement("br"));
+    periodArea.appendChild(document.createTextNode(summary.note));
+  }
+  document.getElementById("f-fy-ex").textContent = formatFiscalYearExample(inputs.startYear);
+  document.getElementById("f-more-now").textContent = buildCurrentSettingText(
+    inputs.startYear, inputs.endYear, inputs.feePercent, inputs.isTaxable
+  );
+}
+
+/**
+ * 「期間を『これから○年』に戻す」ボタンを押したときの動き。
+ * @returns {void}
+ */
+function resetPeriodToFuture() {
+  periodMode = PERIOD_FUTURE;
+  notifyHistoryChange();
+}
+
+/**
  * 入力を読み、結果のカードを作り直す。計算できない入力のときは、案内文だけを出す（NaN・エラーは出さない）。
  * @returns {void}
  */
 function updateHistoryView() {
-  if (historyAssets.length === 0) {
+  if (!isHistoryReady()) {
     return;
   }
+  applyPeriodChoice();
   const asset = getSelectedAsset();
   const inputs = readHistoryInputs();
+  const years = getYearList(asset.returns);
   renderAssetName(asset);
-  document.getElementById("f-fy-ex").textContent = formatFiscalYearExample(inputs.startYear);
+  renderPeriodParts(inputs, years[0], years[years.length - 1]);
   renderSource(asset.source);
   renderDataTable(asset);
 
-  const card = document.getElementById("f-result");
-  clearChildren(card);
+  const body = document.getElementById("f-result-body");
+  clearChildren(body);
   const result = runHistory(asset, inputs);
   if (result.error !== "") {
-    card.appendChild(createElement("div", "label", "計算できません"));
-    card.appendChild(createElement("p", "err", result.error));
+    // 年数の欄が0や空のときは、「期間を戻す」ボタンの文字に初期値の年数を使う
+    let resetYears = toNonNegativeNumber(document.getElementById("n-y").value);
+    if (resetYears === 0) {
+      resetYears = DEFAULT_PERIOD_YEARS;
+    }
+    renderHistoryError(body, result.error, resetYears, resetPeriodToFuture);
     return;
   }
-  card.appendChild(createTimeline(inputs.startYear, inputs.endYear, result.pastYears, result.futureYears, result.lastDataYear));
-  if (result.isRange) {
-    appendRangeResult(card, result, inputs.endYear);
-  } else {
-    appendSingleResult(card, result, inputs.endYear);
-  }
-  if (needsClassificationNote(asset.id, inputs.startYear, inputs.endYear)) {
-    card.appendChild(createElement("p", "warn", CLASSIFICATION_CHANGE_NOTE));
-  }
-  card.appendChild(createExtremes(asset));
-  appendResultNotes(card, inputs, result);
+  renderHistoryResult(body, asset, inputs, result);
 }
 
 /**
- * 最初の準備：データの形を調べ、資産ボタンと年度リストを作り、初期値を入れる。
- * 初期値：開始＝データの最後の年度＋1（これから始める想定）、終了＝開始＋19（20年間）。
- * データが使えないときは「読めない」表示にして、利回りを自分で入れる方へ戻れるようにする。
+ * 期間の2択・年度のリスト・手数料・口座など、入力が変わったときの動きを登録する。
  * @returns {void}
  */
-function setupHistoryView() {
+function setupHistoryEvents() {
+  document.querySelectorAll("input[name=when]").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      periodMode = radio.value;
+      notifyHistoryChange();
+    });
+  });
+  // 年度のリストを動かしたら、2択の選択を外して「細かく選んだ年度」として扱う
+  ["f-start", "f-end"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", function () {
+      periodMode = PERIOD_CUSTOM;
+      notifyHistoryChange();
+    });
+  });
+}
+
+/**
+ * 最初の準備：データの形を調べ、資産ボタンを作る。年度のリストは updateHistoryView が期間の選び方から作る。
+ * データが使えないときは「読めない」表示にして、利回りを自分で入れる方へ戻れるようにする。
+ * @param {Function} onChange 入力が変わったときに全体を計算し直す関数
+ * @returns {void}
+ */
+function setupHistoryView(onChange) {
+  notifyHistoryChange = onChange;
   // データのファイルが読み込めなかったとき、GPIF_RETURNS をそのまま使うとエラーで画面全体が止まるため、先にあるかを確かめる
   let loaded;
   if (typeof GPIF_RETURNS !== "undefined") {
     loaded = GPIF_RETURNS;
   }
   const check = checkHistoryData(loaded);
-  document.getElementById("f-fail").hidden = check.ok;
-  document.getElementById("f-main").hidden = !check.ok;
   if (!check.ok) {
     return;
   }
   historyAssets = loaded.assets;
-  const years = getYearList(historyAssets[0].returns);
-  const firstYear = years[0];
-  const startYear = years[years.length - 1] + 1;
-  renderAssetButtons(historyAssets, updateHistoryView);
-  fillYearOptions(document.getElementById("f-start"), firstYear, LAST_SELECTABLE_YEAR, startYear);
-  fillYearOptions(document.getElementById("f-end"), firstYear, LAST_SELECTABLE_YEAR, startYear + DEFAULT_PERIOD_YEARS - 1);
-  document.getElementById("f-start").addEventListener("change", updateHistoryView);
-  document.getElementById("f-end").addEventListener("change", updateHistoryView);
+  renderAssetButtons(historyAssets, onChange);
+  setupHistoryEvents();
 }

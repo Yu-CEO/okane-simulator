@@ -1,14 +1,8 @@
 /*
- * history_parts_view.js：「過去の実績で計算する」の結果の部品（行・年表の棒・幅の棒・最も悪い／よい年度）をつくる
- * 主な関数：createRow、createTimeline、createRangeBar、createExtremes
- * history_view.js から使われる。表示だけで、計算はしない。dom_helper.js・format.js・history_data.js を使う。
+ * history_parts_view.js：「過去の実績で計算する」の結果の小さな部品（行・3つの箱・最も悪い／よい年度）をつくる
+ * 主な関数：createRow、gainClassName、createThreeBoxes、createExtremes
+ * history_result_view.js から使われる。表示だけで、計算はしない。dom_helper.js・format.js・history_data.js・reading_text.js を使う。
  */
-
-// 幅の棒の右端に余白をつける倍率（最大値ちょうどだと端に貼りつくため。8%の余白）
-const RANGE_BAR_MARGIN = 1.08;
-const PERCENT_FULL = 100;
-// 幅の棒の位置を小数第何位まで指定するか
-const BAR_POSITION_DIGITS = 1;
 
 /**
  * 「ラベル　値」の1行をつくる。
@@ -19,9 +13,9 @@ const BAR_POSITION_DIGITS = 1;
  * @returns {HTMLElement} 行の要素
  */
 function createRow(labelText, valueText, valueClass, rowClass) {
-  let className = "row";
+  let className = "rowv";
   if (rowClass) {
-    className = "row " + rowClass;
+    className = "rowv " + rowClass;
   }
   const row = createElement("div", className, labelText);
   row.appendChild(createElement("b", valueClass, valueText));
@@ -41,113 +35,37 @@ function gainClassName(gainMan) {
 }
 
 /**
- * 年表の棒：どこまでが過去の実績の年度で、どこからがめやすの年度かを示す。
- * @param {number} startYear 運用開始年度
- * @param {number} endYear 運用終了年度
- * @param {number} pastYears 実績の年数
- * @param {number} futureYears めやすの年数
- * @param {number} lastDataYear データの最後の年度
- * @returns {HTMLElement} 年表の要素
+ * 「低いほう（下）／まんなか（中央）／高いほう（上）」の3つの同じ形の箱をつくる。
+ * @param {number} low 低いほう（万円）
+ * @param {number} mid まんなか（万円）
+ * @param {number} high 高いほう（万円）
+ * @returns {HTMLElement} 3つの箱
  */
-function createTimeline(startYear, endYear, pastYears, futureYears, lastDataYear) {
-  const wrapper = createElement("div", "tl", "");
-  const bar = createElement("div", "tl-bar", "");
-  const legend = createElement("div", "tl-leg", "");
-  if (pastYears > 0) {
-    const past = createElement("span", "tl-past", "");
-    past.style.flex = String(pastYears);
-    bar.appendChild(past);
-    const pastText = "実績 " + startYear + "〜" + Math.min(endYear, lastDataYear) + "年度（" + pastYears + "年）";
-    legend.appendChild(createLegendItem("var(--sub)", pastText));
-  }
-  if (futureYears > 0) {
-    const future = createElement("span", "tl-fut", "");
-    future.style.flex = String(futureYears);
-    bar.appendChild(future);
-    const futureText = "めやす " + Math.max(startYear, lastDataYear + 1) + "〜" + endYear + "年度（" + futureYears + "年）";
-    legend.appendChild(createLegendItem("var(--future)", futureText));
-  }
-  wrapper.appendChild(bar);
-  wrapper.appendChild(legend);
-  return wrapper;
+function createThreeBoxes(low, mid, high) {
+  const boxes = createElement("div", "three", "");
+  [
+    ["低いほう（下）", low],
+    ["まんなか（中央）", mid],
+    ["高いほう（上）", high],
+  ].forEach(function (item) {
+    const box = createElement("div", "", "");
+    box.appendChild(createElement("small", "", item[0]));
+    box.appendChild(createElement("b", "", formatManShort(item[1])));
+    boxes.appendChild(box);
+  });
+  return boxes;
 }
 
 /**
- * 年表の凡例（色の四角＋説明）を1つつくる。
- * @param {string} colorValue 四角の色（CSS の値）
- * @param {string} text 説明
- * @returns {HTMLElement} 凡例の要素
+ * 最も悪かった／よかった年度の1行（値と、%の例つき）をつくる。2行とも同じ見た目。
+ * @param {string} labelText 「最も悪かった年度」など
+ * @param {{year:number, value:number}} extreme 年度と収益率（%）
+ * @returns {HTMLElement} 行の要素
  */
-function createLegendItem(colorValue, text) {
-  const item = createElement("span", "", "");
-  const square = createElement("i", "", "");
-  square.style.background = colorValue;
-  item.appendChild(square);
-  item.appendChild(document.createTextNode(text));
-  return item;
-}
-
-/**
- * 値を、棒の中の位置（0〜100%の文字）に直す。
- * @param {number} value 金額（万円）
- * @param {number} maxValue 棒の右端にあたる金額（万円）
- * @returns {number} 位置（0〜100）
- */
-function toBarPosition(value, maxValue) {
-  const position = (value / maxValue) * PERCENT_FULL;
-  return Math.max(0, Math.min(PERCENT_FULL, position));
-}
-
-/**
- * 幅の棒（CSSだけ）：紫＝下〜上の幅、白い線＝中央、点線＝元本。どの資産でも同じ色。
- * @param {number} low 下（万円）
- * @param {number} mid 中央（万円）
- * @param {number} high 上（万円）
- * @param {number} principal 元本（万円）
- * @returns {HTMLElement} 棒と凡例をまとめた要素
- */
-function createRangeBar(low, mid, high, principal) {
-  let maxValue = Math.max(high, principal) * RANGE_BAR_MARGIN;
-  if (maxValue <= 0) {
-    // 金額がすべて0のとき、0で割って位置が計算できなくなるのを防ぐため
-    maxValue = 1;
-  }
-  const lowPosition = toBarPosition(low, maxValue);
-  const highPosition = toBarPosition(high, maxValue);
-  const wrapper = createElement("div", "", "");
-  const bar = createElement("div", "rbar", "");
-  bar.setAttribute("aria-hidden", "true");
-  bar.appendChild(createElement("div", "track", ""));
-  const fill = createElement("div", "fill", "");
-  fill.style.left = lowPosition.toFixed(BAR_POSITION_DIGITS) + "%";
-  fill.style.width = (highPosition - lowPosition).toFixed(BAR_POSITION_DIGITS) + "%";
-  bar.appendChild(fill);
-  const dot = createElement("div", "dot", "");
-  dot.style.left = toBarPosition(mid, maxValue).toFixed(BAR_POSITION_DIGITS) + "%";
-  bar.appendChild(dot);
-  const principalLine = createElement("div", "pr", "");
-  principalLine.style.left = toBarPosition(principal, maxValue).toFixed(BAR_POSITION_DIGITS) + "%";
-  bar.appendChild(principalLine);
-  wrapper.appendChild(bar);
-  const legend = createElement("div", "rleg", "");
-  legend.appendChild(createRangeLegendItem("legend-fill", "めやすの幅"));
-  legend.appendChild(createRangeLegendItem("legend-dot", "中央"));
-  legend.appendChild(createRangeLegendItem("legend-pr", "元本"));
-  wrapper.appendChild(legend);
-  return wrapper;
-}
-
-/**
- * 幅の棒の凡例を1つつくる。見た目は css/style.css の legend-* クラスで決める。
- * @param {string} iconClass 印のクラス名
- * @param {string} text 説明
- * @returns {HTMLElement} 凡例の要素
- */
-function createRangeLegendItem(iconClass, text) {
-  const item = createElement("span", "", "");
-  item.appendChild(createElement("i", iconClass, ""));
-  item.appendChild(document.createTextNode(text));
-  return item;
+function createExtremeRow(labelText, extreme) {
+  const row = createRow(labelText, extreme.year + "年度 " + formatPercentShort(extreme.value), "", "");
+  row.appendChild(createElement("span", "eg", buildExtremeExample(extreme.value)));
+  return row;
 }
 
 /**
@@ -162,11 +80,7 @@ function createExtremes(asset) {
   const box = createElement("div", "ext", "");
   const title = "使ったデータ（" + years[0] + "〜" + years[years.length - 1] + "年度）の中で";
   box.appendChild(createElement("div", "label", title));
-  box.appendChild(
-    createRow("最も悪かった年度", extremes.worst.year + "年度 " + formatPercentSigned(extremes.worst.value), "", "")
-  );
-  box.appendChild(
-    createRow("最もよかった年度", extremes.best.year + "年度 " + formatPercentSigned(extremes.best.value), "", "")
-  );
+  box.appendChild(createExtremeRow("最も悪かった年度", extremes.worst));
+  box.appendChild(createExtremeRow("最もよかった年度", extremes.best));
   return box;
 }
